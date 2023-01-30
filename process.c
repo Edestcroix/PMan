@@ -36,13 +36,14 @@ static void parse_stat(char *line) {
   while (token != NULL) {
     switch (i) {
     // values here are 1 less than the column number in /proc/[pid]/stat
-    // because the first column is the pid, which is already printed.
+    // because the first column is the pid, which was already printed.
     case 1:
       printf("comm: %s ", token);
       break;
     case 2:
       printf("state: %s ", token);
       break;
+    //TODO: Figure out if utime and stime are actually ever not 0
     case 13:
       printf("utime: %s ", token);
       break;
@@ -79,8 +80,8 @@ void print_process(int pid) {
   FILE *fp = fopen(path, "r");
 
   if (fp == NULL) {
-    printf("Error: could not open file %s", path);
-    exit(1);
+    printf("Error: could not open file %s\n", path);
+    return;
   }
 
   char line[MAX_LINE];
@@ -104,8 +105,8 @@ void print_pname(pid_t pid) {
   FILE *fp = fopen(path, "r");
 
   if (fp == NULL) {
-    printf("Error: could not open file %s", path);
-    exit(1);
+    printf("Error: could not open file %s\n", path);
+    return;
   }
 
   char line[MAX_LINE];
@@ -150,6 +151,7 @@ void fork_process(char *args[], proc_list_t *processes) {
     printf("Error: fork failed");
   }
 }
+
 /* function: send_signal
  * ---------------------
  * Sends a signal to a child process. Prints an error message if
@@ -173,13 +175,13 @@ void send_signal(proc_list_t *processes, int pid, int sig) {
     switch (sig) {
     case SIGKILL:
       remove_by_pid(processes, pid);
-      printf(ANSI_COLOR_RED "Killed process %d\n" ANSI_COLOR_RESET, pid);
+      printf(ANSI_COLOR_RED "Killed process %d" ANSI_COLOR_RESET "\n", pid);
       break;
     case SIGSTOP:
-      printf(ANSI_COLOR_YELLOW "Stopped process %d\n" ANSI_COLOR_RESET, pid);
+      printf(ANSI_COLOR_YELLOW "Stopped process %d" ANSI_COLOR_RESET "\n", pid);
       break;
     case SIGCONT:
-      printf(ANSI_COLOR_GREEN "Started process %d\n" ANSI_COLOR_RESET, pid);
+      printf(ANSI_COLOR_GREEN "Started process %d" ANSI_COLOR_RESET "\n", pid);
       break;
     }
   }
@@ -190,25 +192,33 @@ void send_signal(proc_list_t *processes, int pid, int sig) {
  * Prints a message when a process exits or is killed.
  * Removes the process from the list of processes. Basically
  * a wrapper function for common code in check_processes.
+ * Also, if the process pid is not in the list of pid's
+ * it doesn't do anything because this means that the process was
+ * already dealt with by the command handler for bgkill.
  * inputs: pid - pid of the process that exited
  *         msg - message to print
  *         processes - list of processes
+ * returns: 1 if a the pid was found in the list, 0 otherwise
  */
-static void handle_process_exit(int pid, char *msg, proc_list_t *processes) {
-  char o_msg[MSG_LEN];
-  sprintf(o_msg, "Process %d %s", pid, msg);
-  msg_on_prev_line(o_msg);
-  remove_by_pid(processes, pid);
+static int handle_process_exit(int pid, char *msg, proc_list_t *processes) {
+  if (contains_pid(processes, pid)) {
+    char o_msg[MSG_LEN];
+    sprintf(o_msg, "  - Process %d %s", pid, msg);
+    msg_on_prev_line(o_msg);
+    remove_by_pid(processes, pid);
+    return 1;
+  }
+  return 0;
 }
 
 /* function: check_processes
  * -------------------------
  * Checks the state of the program's child processes to see if
- * any exited or been killed. Prints a message informing of any
- * such events, and removes the process from the provided process list.
+ * any have exited or been killed. Prints a message informing of any
+ * such events, and removes the according process from the process list.
  * inputs: processes - list of processes
- * returns: 1 if any process has exited or been killed
- *           0 otherwise
+ * returns: 1 if a tracked process has exited or been killed
+ *          0 otherwise
  */
 int check_processes(proc_list_t *processes) {
   int status;
@@ -216,12 +226,10 @@ int check_processes(proc_list_t *processes) {
   int pid = waitpid(-1, &status, WNOHANG);
   while (pid > 0) {
     if (WIFSIGNALED(status)) {
-      handle_process_exit(pid, "was killed", processes);
-      return 1;
+      return handle_process_exit(pid, "was killed", processes);
     }
     if (WIFEXITED(status)) {
-      handle_process_exit(pid, "has exited", processes);
-      return 1;
+      return handle_process_exit(pid, "has exited", processes);
     }
     pid = waitpid(-1, &status, WNOHANG);
   }

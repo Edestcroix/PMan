@@ -6,11 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
+#include <termios.h>
 #include <unistd.h>
 
-int MAX_INPUT = 1000;
-int MAX_ARGS = 100;
-int WAIT_TIME_SEC = 1; // how often select should check for input
+int MAX_INPUT = 1000; // max chars to read from stdin
+int MAX_ARGS = 100;   // max amount of unique arguments to read
+int WAIT_TIME = 1;    // how often select should check for input, in seconds
+int CMD = 0;          // position of the command to handle by PMan in the args list
+int FIRST_ARG = 1;    // position of the first argument in the args list
 
 /* function parse_input
  * -------------------
@@ -53,17 +56,27 @@ void list_processes(proc_list_t *processes) {
 
 /* function: pid_from_args
  * -----------------------
- * wrapper function to call atoi on the first argument in args,
- * and print an error message if the argument is NULL.
+ * wrapper function to handle common code for all command
+ * handlers in handle_cmds that require getting a pid from the
+ * arguments list.
  * inputs: args - the arguments passed to PMan
  * returns: the pid if it is valid, -1 otherwise.
  */
 int pid_from_args(char *args[]) {
-  if (args[0] == NULL) {
-    printf("Error: No process id provided\n");
+  if (args[FIRST_ARG] == NULL) {
+    printf("Error: Expected argument\n");
+    return -1;
+  } else if (args[FIRST_ARG + 1] != NULL) {
+    printf("Error: Too many arguments\n");
     return -1;
   }
-  return atoi(args[0]);
+  int pid = atoi(args[FIRST_ARG]);
+  if (!pid) {
+    printf("Error: Invalid argument \"%s\", expected process id\n",
+           args[FIRST_ARG]);
+    return -1;
+  }
+  return pid;
 }
 
 /* function: handle_cmds
@@ -76,15 +89,17 @@ int pid_from_args(char *args[]) {
  *         -1 if the command was quit or exit
  */
 int handle_cmds(char *args[], proc_list_t *processes) {
-  char *cmd = args[0];
-  // don't want to pass the PMan command to the forked process
-  remove_first(args);
+  char *cmd = args[CMD];
   if (strcmp(cmd, "bg") == 0) {
+    // remove the "bg" command from args. Everything after are
+    // the command/arguments for the child process to execute.
+    remove_first(args);
     fork_process(args, processes);
 
   } else if (strcmp(cmd, "bglist") == 0) {
+    args[FIRST_ARG] != NULL ? printf("Error: Unexpected argument(s)\n")
+                            : list_processes(processes);
 
-    list_processes(processes);
   } else if (strcmp(cmd, "bgkill") == 0) {
     // if the pid is invalid, pid_from_args will print an error message,
     // and return -1. send_signal just returns immediately in this case.
@@ -105,7 +120,7 @@ int handle_cmds(char *args[], proc_list_t *processes) {
     return -1;
 
   } else {
-    printf("Invalid command: %s\n", cmd);
+    printf("Invalid command \"%s\"\n", cmd);
   }
   return 0;
 }
@@ -129,18 +144,25 @@ int main() {
   fd_set readfds;
   struct timeval tv;
 
+  // main event loop
   while (!quit) {
     // set up values for select
     FD_ZERO(&readfds);
     FD_SET(fileno(stdin), &readfds);
-    tv.tv_sec = WAIT_TIME_SEC;
+    tv.tv_sec = WAIT_TIME;
     tv.tv_usec = 0;
 
-    // print prompt if needed, prevents printing multiple prompts
-    // every loop iteration, and allows finer control over displaying prompt
+    // print prompt only if needed, preventing printing multiple prompts
+    // every loop iteration and allowing finer control over displaying prompt
     if (need_prompt) {
       printf("PMan: > ");
       need_prompt = 0;
+      // flush input when displaying prompt because process exit messages
+      // can cause unexpected behaviour when they are printed over user input.
+      int in = dup(STDIN_FILENO);
+      tcdrain(in);
+      tcflush(in, TCIFLUSH);
+      close(in);
     }
     fflush(stdout);
 
@@ -150,13 +172,13 @@ int main() {
       perror("select");
       exit(1);
     } else if (readable == 0) {
-      // check_processes returns 1 if a process has exited,
-      // and 0 otherwise. Setting need_prompt to this value,
-      // will reprint the prompt after the message from check_processes.
+      // check_processes returns 1 if a process has exited and 0 otherwise.
+      // Since check_processes prints a message when a child has exited,
+      // updating need_prompt will trigger a reprint of the prompt when needed
       need_prompt = check_processes(processes);
     } else {
-      // if input is available, read and parse it, then handle commands.
       need_prompt = 1;
+      // retrieve the user input and process it.
       read(fileno(stdin), input, MAX_INPUT);
       remove_newline(input);
       parse_input(input, args);
