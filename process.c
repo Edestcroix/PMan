@@ -2,6 +2,9 @@
  * @brief Source file for process management functions
  */
 
+
+//TODO: standardize commment formatting
+
 #include "process.h"
 #include "list.h"
 #include "utils.h"
@@ -12,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <termios.h>
 
 // ANSI color codes for printing
 #define ANSI_COLOR_RED "\x1b[31m"
@@ -20,7 +24,7 @@
 #define ANSI_COLOR_RESET "\x1b[0m"
 
 int MAX_PATH = 100;
-int MAX_LINE = 1000;
+int MAX_LEN = 1000;
 int MSG_LEN = 100;
 
 /* function: parse_stat
@@ -66,14 +70,14 @@ static void parse_stat(char *line) {
   printf("\n");
 }
 
-/* function print_process
+/* function print_pstats
  * ----------------------
  * Retrieves the stat file for a process and prints
  * the values of the following fields:
  * comm, state, utime, stime, rss, vcsw, ivcsw
  * inputs: pid - pid of the process to print
  */
-void print_process(int pid) {
+void print_pstats(int pid) {
   // parse /proc/[pid]/stat
   char *path = malloc(MAX_PATH);
   sprintf(path, "/proc/%d/stat", pid);
@@ -84,21 +88,21 @@ void print_process(int pid) {
     return;
   }
 
-  char line[MAX_LINE];
-  fgets(line, MAX_LINE, fp);
+  char line[MAX_LEN];
+  fgets(line, MAX_LEN, fp);
   fclose(fp);
   free(path);
   printf("pid: %d ", pid);
   parse_stat(line);
 }
 
-/* function print_pname
+/* function print_process
  * --------------------
  * Retrieves the cmdline file for a process and prints
  * the command name.
  * inputs: pid - pid of the process to print
  */
-void print_pname(pid_t pid) {
+void print_process(pid_t pid) {
   // parse /proc/[pid]/cmdline
   char *path = malloc(MAX_PATH);
   sprintf(path, "/proc/%d/cmdline", pid);
@@ -109,12 +113,34 @@ void print_pname(pid_t pid) {
     return;
   }
 
-  char line[MAX_LINE];
-  fgets(line, MAX_LINE, fp);
+  char line[MAX_LEN];
+  fgets(line, MAX_LEN, fp);
   fclose(fp);
   free(path);
   printf("%d: %s\n", pid, line);
 }
+
+/* function: list_processes
+ * ------------------------
+ * prints the list of background processes
+ * inputs: processes - the list of background processes
+ */
+void list_processes(proc_list_t *processes) {
+  if (processes->size > 1) {
+    printf("Background processes (%d):\n", processes->size);
+  } else if (processes->size == 1) {
+    printf("Background process (1):\n");
+  } else {
+    printf("No background processes\n");
+    return;
+  }
+  proc_t *cur = processes->head;
+  while (cur != NULL) {
+    print_process(cur->pid);
+    cur = cur->next;
+  }
+}
+
 
 /* function: fork_process
  * ----------------------
@@ -122,9 +148,9 @@ void print_pname(pid_t pid) {
  * If the command is invalid, the child prints an error message and exits.
  * Otherwise, the parent adds the forked child process to the list of processes.
  * Void output because errors are handled by the child process.
- * inputs: args - array of arguments to pass to execvp. The first element
+ * inputs: - args: array of arguments to pass to execvp. The first element
  *                should be the command to execute.
- *         processes - list of processes
+ *         - processes: list of processes
  */
 void fork_process(char *args[], proc_list_t *processes) {
   int pid = fork();
@@ -137,7 +163,7 @@ void fork_process(char *args[], proc_list_t *processes) {
       char msg[MSG_LEN];
       sprintf(msg, "Error: invalid command %s", args[0]);
       msg_on_prev_line(msg);
-      exit(1);
+      exit(-1);
     }
   } else if (pid > 0) {
     // add to list of processes. Add at the end
@@ -158,9 +184,9 @@ void fork_process(char *args[], proc_list_t *processes) {
  * the provided pid does not correspond to a child process.
  * In the case of a SIGKILL, also removes the process from the
  * process list.
- * inputs: processes - list of processes
- *         pid - pid of the process to send the signal to
- *         sig - signal to send
+ * inputs: - processes: list of processes
+ *         - pid: pid of the process to send the signal to
+ *         - sig: signal to send
  */
 void send_signal(proc_list_t *processes, int pid, int sig) {
   // makes the code that calls this function cleaner

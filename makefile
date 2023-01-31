@@ -3,7 +3,7 @@ CFLAGS=-c -Wall -g
 COMPILE = $(COMPILER) $(CFLAGS)
 
 all: pman.c build/list.o build/process.o build/utils.o
-	$(COMPILER) $< build/*.o -o PMan
+	$(COMPILER) $< build/*.o -o pman
 
 build/process.o: list.h utils.h process.c process.h
 	mkdir -p build

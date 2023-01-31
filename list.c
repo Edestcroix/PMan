@@ -2,6 +2,8 @@
  * @brief Source file for linked list meant to store process ids
  */
 
+//TODO: standardize commment formatting
+
 #include "list.h"
 #include <assert.h>
 #include <stdio.h>
@@ -123,7 +125,6 @@ int contains_pid(proc_list_t *proc_list, int pid) {
  * ------------------------
  * Destroys the list and frees all allocated memory
  * inputs: proc_list - pointer to the linked list
- * returns: none
  */
 void free_proc_list(proc_list_t *proc_list) {
   proc_t *cur = proc_list->head;

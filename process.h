@@ -7,8 +7,9 @@
 #ifndef _PROCESS_H_
 #define _PROCESS_H_
 
-void print_pname(int pid);
 void print_process(int pid);
+void print_pstats(int pid);
+void list_processes(proc_list_t *processes);
 void fork_process(char *args[], proc_list_t *processes);
 void send_signal(proc_list_t *processes, int pid, int sig);
 int check_processes(proc_list_t *processes);
