@@ -7,9 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* function: remove_first
- * ----------------------
- * Removes the first element of an array of strings
+/* Removes the first element of an array of strings
  * by shifting all elements to the left by one.
  * input: array of strings
  */
@@ -21,9 +19,7 @@ void remove_first(char *array[]) {
   }
 }
 
-/* function: msg_on_prev_line
- * --------------------------
- * Prints a message on the previous line of the terminal.
+/* Prints a message on the previous line of the terminal.
  * input: message to print
  */
 void msg_on_prev_line(char *msg) {
@@ -33,9 +29,7 @@ void msg_on_prev_line(char *msg) {
   printf("%s\n", msg);
 }
 
-/* function: remove_newline
- * ------------------------
- * Removes the newline character from the end of a string.
+/* Removes the newline character from the end of a string.
  * input: string to remove newline from
  */
 void remove_newline(char *str) {
@@ -45,13 +39,20 @@ void remove_newline(char *str) {
   }
 }
 
-/* function: all_spaces
- * checks if a string consists of only space characters
- * inputs: - str: the string to check
- * output: - 1 if the string is all spaces, 0 otherwise 
-*/
-int all_spaces(char *str) {
-  int len = strlen(str);
-  int len_space = strspn(str, " ");
-  return len == len_space;
+void clean_buffer(char *buffer, int size) { memset(buffer, 0, size); }
+
+/* checks if a string consists of only space characters
+ * inputs: str: the string to check
+ * output: 1 if the string is all spaces, 0 otherwise
+ */
+int all_spaces(char *str) { return strlen(str) == strspn(str, " "); }
+
+// TODO: function description.
+void concat_strs(char *dest, char *str_list[], int limit) {
+  int i = 0;
+  strncpy(dest, str_list[i++], limit);
+  while (str_list[i] != NULL) {
+    strncat(dest, " ", limit);
+    strncat(dest, str_list[i++], limit);
+  }
 }

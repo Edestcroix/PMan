@@ -7,11 +7,15 @@
 #ifndef _PROCESS_H_
 #define _PROCESS_H_
 
+// idenifies where to run a processes: ForeGround(FG) or BackGround(BG)
+enum runin { FG, BG };
+
 void print_process(int pid);
 void print_pstats(int pid);
-void list_processes(proc_list_t *processes);
-void fork_process(char *args[], proc_list_t *processes);
-void send_signal(proc_list_t *processes, int pid, int sig);
-int check_processes(proc_list_t *processes);
+void list_processes(plist_t *processes);
+int fork_process(char *args[], plist_t *processes, enum runin type);
+void send_signal(plist_t *processes, int pid, int sig);
+void kill_all(plist_t *processes);
+int check_processes(plist_t *processes);
 
 #endif

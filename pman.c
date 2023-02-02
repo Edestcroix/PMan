@@ -6,34 +6,38 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wait.h>
 
-int MAX_BUFF_LEN = 80;//max amount of bytes to read from stdin
-int MAX_ARGS = 100;   // max amount of unique arguments to read
-int WAIT_TIME = 1;    // how often select should check for input, in seconds
-int CMD = 0;          // position of the command to handle by PMan in the args list
-int FIRST_ARG = 1;    // position of the first argument in the args list
+int MAX_ARGS = 100; // max amount of unique arguments to read
+int WAIT_TIME = 1;  // how often select should check for input, in seconds
+int CMD = 0;       // position of the command to handle by PMan in the args list
+int FIRST_ARG = 1; // position of the first argument in the args list
 
-/* function parse_cmds
- * -------------------
- * parses the input string into an array of commands/arguments
+// tracks the pid of whatever child is running in the foreground.
+static sig_atomic_t fg_pid = -1;
+
+/* passess signal sent to parent to foreground child signified by fg_pid.
+ * if fg_pid is -1, then there is no foreground child and parent should exit()
+ * prevents ctrl-c from terminating PMan when a foreground processes is running.
+ */
+void sig_handler(int sig) { (fg_pid != -1) ? kill(fg_pid, sig) : exit(0); }
+
+/* parses the input string into an array of commands/arguments
  * assumes input string uses spaces to separate commands/arguments
  * inputs: input - the input string
- *         args - the array of arguments
+ *         args - the array of argumentso
  */
 void parse_cmds(char *input, char *args[]) {
   char *token = strtok(input, " ");
   int i = 0;
   while (token != NULL) {
-    args[i] = token;
-    i++;
+    args[i++] = token;
     token = strtok(NULL, " ");
   }
   args[i] = NULL;
 }
 
-/* function: pid_from_args
- * -----------------------
- * wrapper function to handle common code for all command
+/* wrapper function to handle common code for all command
  * handlers in handle_cmds that require getting a pid from the
  * arguments list.
  * inputs: args - the arguments passed to PMan
@@ -56,25 +60,21 @@ int pid_from_args(char *args[]) {
   return pid;
 }
 
-/* function: handle_cmds
- * ---------------------
- * handles the commands that PMan can execute, and calls the appropriate
- * functions to handle them.
- * inputs: args - the arguments passed to PMan
- *         processes - the list of background processes
- * returns: 1 if the command was handled,
- *          -1 if the command was quit or exit
+/* handles the commands that PMan can execute, and calls the appropriate
+ * functions to handle them. Determines the requested command by parsing
+ * the first element of args[].
+ * outputs -1 if the command was quit or exit, 1 otherwise
  */
-int handle_cmds(char *args[], proc_list_t *processes) {
+int handle_cmds(char *args[], plist_t *processes) {
   char *cmd = args[CMD];
   if (strcmp(cmd, "bg") == 0) {
-    // remove the "bg" command from args. Everything after are
-    // the command/arguments for the child process to execute.
-    if (args[1] == NULL) {
+    if (args[FIRST_ARG] == NULL) {
       printf("Error: Expected arguments\n");
     } else {
+      // remove the "bg" command from args. Everything after are
+      // the command/arguments for the child process to execute.
       remove_first(args);
-      fork_process(args, processes);
+      fork_process(args, processes, BG);
     }
 
   } else if (strcmp(cmd, "bglist") == 0) {
@@ -101,16 +101,24 @@ int handle_cmds(char *args[], proc_list_t *processes) {
     return -1;
 
   } else {
-    printf("Error: Invalid command\n");
+    // if no builtin commands were found, treat
+    // the input as a system command and fork a
+    // new process, but block waiting for the child to to terminate.
+    int status;
+    // while fg_pid is set, incoming SIGINTs will exit the child.
+    fg_pid = fork_process(args, processes, FG);
+    waitpid(fg_pid, &status, 0);
+    // once child exits, reset fg_pid so SIGINTS will exit the parent.
+    fg_pid = -1;
   }
   return 1;
 }
 
-/* function: check_input
- * uses select() to determine if input can be read from stdin
- * returns 1 if input can be read, 0 otherwise
+/* uses select() to determine if input can be read from stdin
+ * returns 1 if input can be read, 0 if not, and -1 if select()
+ * fails.
  */
-int check_input() {
+int is_input() {
   struct timeval tv = {.tv_sec = WAIT_TIME, .tv_usec = 0};
   fd_set readfds;
   FD_ZERO(&readfds);
@@ -118,87 +126,75 @@ int check_input() {
   return select(fileno(stdin) + 1, &readfds, NULL, NULL, &tv);
 }
 
-/* function: handle_input
- * checks for user input when called. If input is present,
- * process the input and parses the provided commands, executing
- * them if they are valid. Otherwise check if any child processes
- * have terminated and display a message if they have.
- * inputs: - args: array to hold the parse command arguments
- *         - processes: list of managed processes
- * output: - -1 if input is quit or exit
- *         - 0 if no input found
- *         - 1 if input is found
- *         - terminates with an error if the select() call fails
- */
-int handle_input(proc_list_t *processes) {
-  char input[MAX_BUFF_LEN];
+/* when called, checks for user input. If input exists, it parses the
+ * input and handles the parsed commands. outputs -1 if input is quit or
+ * exit, 0 if no actions taken, 1 if actions were taken,
+ * or terminates with an error if the input check fails */
+int check_input(plist_t *processes) {
+  char raw_input[LINE_MAX], input[LINE_MAX];
   char *args[MAX_ARGS];
-  char raw_input[MAX_BUFF_LEN];
   int child_ended = 0;
 
-  switch (check_input()) {
+  switch (is_input()) {
   case -1:
     perror("select");
     exit(1);
   case 0:
-    return check_processes(processes);
+    // no input, nothing to do.
+    return 0;
   default:
-    // read from stdin
-    read(fileno(stdin), raw_input, MAX_BUFF_LEN);
-    // parse the raw buffer, prevents segfaults.
+    // read from stdin, doesn't block. Reads at
+    // most the max line size defined by <limits.h>
+    read(fileno(stdin), raw_input, LINE_MAX);
+
+    // wipe input so previous input doesn't persist
+    // when blank input is submited.
+    clean_buffer(input, LINE_MAX);
+    // parse the raw buffer, stripping tabs and newlines.
     sscanf(raw_input, "%[^\t\n]", input);
 
-    // don't parse input if it is only space chars.
     if (!all_spaces(input)) {
-      remove_newline(input);
       parse_cmds(input, args);
       return handle_cmds(args, processes);
     } else {
-      printf("Error: Invalid command\n");
+      printf("Error: Expected input\n");
     }
     return 1;
   }
 }
 
-/* function: main
- * --------------
- * main function for PMan. Handles the main loop of the program,
- * and calls the appropriate functions to handle commands.
- * waits for input using select, and checks for background processes
- * that have exited while waiting. On input it reads the input, parses it,
- * and calls handle_cmds to handle the command.
+/*
+ * main function for PMan. Initializes child processes list, links signal
+ * handlers; handles the main loop of the program, printing input prompts,
+ * checking for user input and whether children have terminated.
  */
 int main() {
-  int quit = 0;
-  int need_prompt = 1;
-  proc_list_t *processes = create_list();
-  char *args[MAX_ARGS];
+  int quit = 0, need_prompt = 1;
+  plist_t *processes = create_list();
+
+  signal(SIGINT, sig_handler);
 
   // main event loop
   while (!quit) {
-    // print prompt only if needed, preventing printing multiple prompts
-    // every loop iteration and allowing finer control over displaying prompt
     if (need_prompt) {
       printf("PMan: > ");
       need_prompt = 0;
     }
-
+    // flushing stdout here makes displaying output faster.
     fflush(stdout);
-
-    // check for user input, then if no input is provided, check if
-    // processes have terminated. Signal prompt to be redrawn
-    // whenever input is provided or a process termination message is sent
-    int is_input = handle_input(processes);
-    // check_processes returns 1 when it prints a termination message,
-    // so setting need_prompt to check_processes output will reprint
-    // the prompt as necessary.
+    int is_input = check_input(processes);
     if (is_input == -1) {
       quit = 1;
     } else {
-      need_prompt = is_input;
+      // check_input returns 1 whenever input was submitted
+      // in which case a new prompt is needed. Additionally,
+      // a new prompt is also needed whenever check_processes()
+      // returns 1 as well, which is when it prints a termination message.
+      need_prompt = is_input || check_processes(processes);
     }
   }
+  kill_all(processes);
+  free_list(processes);
   printf("Exiting...\n");
-  free_proc_list(processes);
-  return 0;
+  exit(0);
 }

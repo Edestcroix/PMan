@@ -1,32 +1,36 @@
 /* @file list.h
- * @brief Header file for linked list functions to store process ids
+ * @brief Header file for linked list to store processes
  */
 
+#include <limits.h>
 #include <sys/types.h>
 
 #ifndef _LINKEDLIST_H_
 #define _LINKEDLIST_H_
 
-typedef struct proc_t
-{
-    pid_t pid;
-    struct proc_t *next;
-    
+enum pstate { ACTIVE, STOPPED };
 
-} proc_t;
+typedef struct process_t {
+  pid_t pid;
+  enum pstate state;
+  char name[LINE_MAX];
+  struct process_t *next;
 
-typedef struct proc_list_t
-{
-    int size;
-    proc_t *head;
-    proc_t *tail;
+} process_t;
 
-} proc_list_t;
+typedef struct plist_t {
+  int size;
+  process_t *head;
+  process_t *tail;
 
-proc_list_t *create_list();
-proc_list_t *add_at_end(proc_list_t *proc_list, int pid);
-proc_list_t *remove_by_pid(proc_list_t *proc_list, int pid);
-int contains_pid(proc_list_t *proc_list, int pid);
-void free_proc_list(proc_list_t *proc_list);
+} plist_t;
+
+plist_t *create_list();
+process_t *new_node(int pid, char name[LINE_MAX], enum pstate state);
+plist_t *add_at_end(plist_t *proc_list, process_t *pnew);
+plist_t *remove_by_pid(plist_t *proc_list, int pid);
+int contains_pid(plist_t *proc_list, int pid);
+process_t *get_process(plist_t *proc_list, int pid);
+void free_list(plist_t *proc_list);
 
 #endif
