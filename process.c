@@ -196,6 +196,7 @@ void send_signal(plist_t *processes, int pid, int sig) {
   }
 }
 
+/* sends SIGKILL to all child processes in the processes list */
 void kill_all(plist_t *processes) {
   process_t *cur = processes->head;
   while (cur != NULL) {

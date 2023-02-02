@@ -7,7 +7,7 @@
 #ifndef _PROCESS_H_
 #define _PROCESS_H_
 
-// idenifies where to run a processes: ForeGround(FG) or BackGround(BG)
+// idendifies where to run a processes: ForeGround(FG) or BackGround(BG)
 enum runin { FG, BG };
 
 void print_process(int pid);

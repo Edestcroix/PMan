@@ -39,6 +39,7 @@ void remove_newline(char *str) {
   }
 }
 
+/* wipes input string buffer up to 'size' chars */
 void clean_buffer(char *buffer, int size) { memset(buffer, 0, size); }
 
 /* checks if a string consists of only space characters
