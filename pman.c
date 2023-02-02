@@ -13,15 +13,6 @@ int WAIT_TIME = 1;  // how often select should check for input, in seconds
 int CMD = 0;       // position of the command to handle by PMan in the args list
 int FIRST_ARG = 1; // position of the first argument in the args list
 
-// tracks the pid of whatever child is running in the foreground.
-static sig_atomic_t fg_pid = -1;
-
-/* passess signal sent to parent to foreground child signified by fg_pid.
- * if fg_pid is -1, then there is no foreground child and parent should exit()
- * prevents ctrl-c from terminating PMan when a foreground processes is running.
- */
-void sig_handler(int sig) { (fg_pid != -1) ? kill(fg_pid, sig) : exit(0); }
-
 /* parses the input string into an array of commands/arguments
  * assumes input string uses spaces to separate commands/arguments
  * inputs: input - the input string
@@ -101,15 +92,7 @@ int handle_cmds(char *args[], plist_t *processes) {
     return -1;
 
   } else {
-    // if no builtin commands were found, treat
-    // the input as a system command and fork a
-    // new process, but block waiting for the child to to terminate.
-    int status;
-    // while fg_pid is set, incoming SIGINTs will exit the child.
-    fg_pid = fork_process(args, processes, FG);
-    waitpid(fg_pid, &status, 0);
-    // once child exits, reset fg_pid so SIGINTS will exit the parent.
-    fg_pid = -1;
+    printf("Error: Command invalid or not supported\n");
   }
   return 1;
 }
@@ -171,8 +154,6 @@ int check_input(plist_t *processes) {
 int main() {
   int quit = 0, need_prompt = 1;
   plist_t *processes = create_list();
-
-  signal(SIGINT, sig_handler);
 
   // main event loop
   while (!quit) {
