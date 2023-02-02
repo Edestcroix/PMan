@@ -10,6 +10,10 @@
 
 enum pstate { ACTIVE, STOPPED };
 
+// node of the list, describes a process with
+// pid, the current state, (active or stopped) and
+// the name, which is the command entered into pman to
+// start the process.
 typedef struct process_t {
   pid_t pid;
   enum pstate state;
@@ -18,6 +22,8 @@ typedef struct process_t {
 
 } process_t;
 
+// list struct, holds the head of a list and the number of
+// elements in the list.
 typedef struct plist_t {
   int size;
   process_t *head;
