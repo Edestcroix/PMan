@@ -48,7 +48,9 @@ void clean_buffer(char *buffer, int size) { memset(buffer, 0, size); }
  */
 int all_spaces(char *str) { return strlen(str) == strspn(str, " "); }
 
-// TODO: function description.
+/* concatenates at most 'limit' characters from each string in str_list
+ * to dest
+ */
 void concat_strs(char *dest, char *str_list[], int limit) {
   int i = 0;
   strncpy(dest, str_list[i++], limit);
