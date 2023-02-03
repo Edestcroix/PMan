@@ -2,7 +2,7 @@
  * @brief Source file for linked list meant to store process ids
  */
 
-// TODO: standardize commment formatting
+// TODO: standardize comment formatting
 
 #include "list.h"
 #include <limits.h>
@@ -45,14 +45,14 @@ process_t *new_node(int pid, char name[LINE_MAX], enum pstate state) {
  *         pid - the new process id to be added
  * returns: pointer to the head of the updated list
  */
-plist_t *add_at_end(plist_t *proc_list, process_t *pnew) {
+plist_t *add_at_end(plist_t *proc_list, process_t *p_new) {
   proc_list->size++;
   if (proc_list->head == NULL) {
-    proc_list->head = pnew;
-    proc_list->tail = pnew;
+    proc_list->head = p_new;
+    proc_list->tail = p_new;
   } else {
-    proc_list->tail->next = pnew;
-    proc_list->tail = pnew;
+    proc_list->tail->next = p_new;
+    proc_list->tail = p_new;
   }
 
   return proc_list;

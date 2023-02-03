@@ -2,11 +2,12 @@
  * @brief Source file for process management functions
  */
 
-// TODO: standardize commment formatting
+// TODO: standardize comment formatting
 #include "process.h"
-#include "limits.h"
 #include "list.h"
 #include "utils.h"
+#include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
