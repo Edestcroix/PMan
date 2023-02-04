@@ -147,6 +147,7 @@ int check_input(plist_t *processes) {
   default:
     // read from stdin, doesn't block. Reads at
     // most the max line size defined by <limits.h>
+
     read(fileno(stdin), raw_input, LINE_MAX);
 
     // wipe input so previous input doesn't persist

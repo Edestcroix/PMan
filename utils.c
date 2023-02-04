@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* Removes the first element of an array of strings
  * by shifting all elements to the left by one.
@@ -53,9 +54,28 @@ int all_spaces(char *str) { return strlen(str) == strspn(str, " "); }
  */
 void concat_strs(char *dest, char *str_list[], int limit) {
   int i = 0;
-  strncpy(dest, str_list[i++], limit);
+  if (dest[0] != '\0')
+    strncat(dest, " ", limit);
+  strncat(dest, str_list[i++], limit);
   while (str_list[i] != NULL) {
     strncat(dest, " ", limit);
     strncat(dest, str_list[i++], limit);
   }
 }
+/*
+void path_search(char* executable, char *result){
+  char* path = getenv("PATH");
+  char* dir = strtok(path, ":");
+  char* temp = malloc(100);
+  while(dir != NULL){
+    strcpy(temp, dir);
+    strcat(temp, "/");
+    strcat(temp, executable);
+    if(access(temp, X_OK) == 0){
+      strcpy(result, temp);
+      free(temp);
+      return;
+    }
+    dir = strtok(NULL, ":");
+  }
+}*/
