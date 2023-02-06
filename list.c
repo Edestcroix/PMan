@@ -31,6 +31,7 @@ process_t *new_node(int pid, char name[LINE_MAX], enum pstate state) {
     exit(1);
   }
   node->pid = pid;
+  node->state = state;
   strncpy(node->name, name, LINE_MAX);
   node->next = NULL;
   return node;
