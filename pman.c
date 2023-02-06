@@ -1,10 +1,12 @@
 #include "list.h"
 #include "process.h"
 #include "utils.h"
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <unistd.h>
 #include <wait.h>
 
@@ -16,7 +18,7 @@ int FIRST_ARG = 1; // position of the first argument in the args list
 /* parses the input string into an array of commands/arguments
  * assumes input string uses spaces to separate commands/arguments
  * inputs: input - the input string
- *         args - the array of argumentso
+ *         args - the array of arguments
  */
 void parse_cmds(char *input, char *args[]) {
   char *token = strtok(input, " ");
@@ -128,10 +130,11 @@ int check_input(plist_t *processes) {
   default:
     // read from stdin, doesn't block. Reads at
     // most the max line size defined by <limits.h>
+
     read(fileno(stdin), raw_input, LINE_MAX);
 
     // wipe input so previous input doesn't persist
-    // when blank input is submited.
+    // when blank input is submitted.
     clean_buffer(input, LINE_MAX);
     // parse the raw buffer, stripping tabs and newlines.
     sscanf(raw_input, "%[^\t\n]", input);

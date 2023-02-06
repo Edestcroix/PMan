@@ -2,11 +2,12 @@
  * @brief Source file for process management functions
  */
 
-// TODO: standardize commment formatting
+// TODO: standardize comment formatting
 #include "process.h"
-#include "limits.h"
 #include "list.h"
 #include "utils.h"
+#include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -144,7 +145,14 @@ int fork_process(char *args[], plist_t *processes, enum runin type) {
     // it will not be longer than LINE_MAX,
     // because LINE_MAX is the maximum amount of
     // chars that are read from stdin.
-    char name[LINE_MAX];
+    //
+    char name[LINE_MAX], path[LINE_MAX];
+    clean_buffer(name, LINE_MAX);
+    realpath(args[0], path);
+    if (access(path, X_OK) == 0) {
+      remove_first(args);
+      strcpy(name, path);
+    }
     concat_strs(name, args, LINE_MAX);
     if (type == BG) {
       process_t *new_process = new_node(pid, name, ACTIVE);
