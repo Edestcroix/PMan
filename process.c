@@ -104,14 +104,13 @@ void list_processes(plist_t *processes) {
   process_t *cur = processes->head;
   while (cur != NULL) {
     switch (cur->state) {
-    case ACTIVE:
-      printf(ANSI_COLOR_GREEN "  - %d: %s (Active)" ANSI_COLOR_RESET "\n",
-             cur->pid, cur->name);
-      break;
     case STOPPED:
       printf(ANSI_COLOR_YELLOW "  - %d: %s (Stopped)" ANSI_COLOR_RESET "\n",
              cur->pid, cur->name);
       break;
+    default:
+      printf(ANSI_COLOR_GREEN "  - %d: %s (Active)" ANSI_COLOR_RESET "\n",
+             cur->pid, cur->name);
     }
     cur = cur->next;
   }
