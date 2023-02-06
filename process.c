@@ -2,7 +2,6 @@
  * @brief Source file for process management functions
  */
 
-// TODO: standardize comment formatting
 #include "process.h"
 #include "list.h"
 #include "utils.h"
@@ -42,7 +41,6 @@ static void parse_stat(char *line) {
     case 2:
       printf("state: %s ", token);
       break;
-    // TODO: Figure out if utime and stime are actually ever not 0
     case 13:
       printf("utime: %s ", token);
       break;
@@ -137,6 +135,7 @@ int fork_process(char *args[], plist_t *processes, enum runin type) {
       char msg[MSG_LEN];
       sprintf(msg, "Error: Invalid command \"%s\"", args[0]);
       msg_on_prev_line(msg);
+      printf("PMan: > ");
       exit(-1);
     }
   } else if (pid > 0) {

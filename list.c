@@ -2,8 +2,6 @@
  * @brief Source file for linked list meant to store process ids
  */
 
-// TODO: standardize comment formatting
-
 #include "list.h"
 #include <limits.h>
 #include <stdio.h>
