@@ -70,6 +70,7 @@ plist_t *remove_by_pid(plist_t *proc_list, int pid) {
     free(proc_list->head);
     proc_list->head = next;
     proc_list->size--;
+    return proc_list;
   }
   // otherwise, search the list until pid is found and remove it.
   else {
@@ -79,8 +80,12 @@ plist_t *remove_by_pid(plist_t *proc_list, int pid) {
         process_t *next = cur->next->next;
         free(cur->next);
         cur->next = next;
+        // critical to update the tail pointer if the tail is removed,
+        // otherwise anything added to the end will be lost.
+        if (cur->next == NULL)
+          proc_list->tail = cur;
         proc_list->size--;
-        break;
+        return proc_list;
       }
       cur = cur->next;
     }
