@@ -2,7 +2,6 @@
  * @brief Source file for process management functions
  */
 
-// TODO: standardize comment formatting
 #include "process.h"
 #include "list.h"
 #include "utils.h"
@@ -42,7 +41,6 @@ static void parse_stat(char *line) {
     case 2:
       printf("state: %s ", token);
       break;
-    // TODO: Figure out if utime and stime are actually ever not 0
     case 13:
       printf("utime: %s ", token);
       break;
@@ -114,7 +112,8 @@ void list_processes(plist_t *processes) {
       printf(ANSI_COLOR_YELLOW "  - %d: %s (Stopped)" ANSI_COLOR_RESET "\n",
              cur->pid, cur->name);
       break;
-      default: break;
+    default:
+      break;
     }
     cur = cur->next;
   }
